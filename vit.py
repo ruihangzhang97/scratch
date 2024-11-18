@@ -131,7 +131,34 @@ class EncoderBlock(nn.Module):
         # output shape same as embeded_patches shape
         return output
 
+class Vit(nn.Module):
+    def __init__(self, num_encoders=num_encoders, latent_size=latent_size, device=device, num_classes=num_classes, dropout=dropout):
+        super(Vit, self).__init__()
+        self.num_encoder = num_encoders
+        self.latent_size = latent_size
+        self.device = device
+        self.num_classes = num_classes
+        self.dropout = dropout
 
+        self.embedding = InputEmbedding()
 
+        # create the stack of encoders
+        self.encStack = nn.ModuleList([EncoderBlock() for i in range(self.num_encoder)])
+
+        self.MLP_head = nn.Sequential(
+            nn.LayerNorm(self.latent_size),
+            nn.Linear(self.latent_size, self.latent_size),
+            nn.Linear(self.latent_size, self.num_classes)
+        )
+
+    def forward(self, input):
+        enc_output = self.embedding(input)
+
+        for enc_layer in self.encStack:
+            enc_output = enc_layer(enc_output)
+        
+        cls_token_embed = enc_output[:, 0]
+
+        return self.MLP_head(cls_token_embed)
 
 
