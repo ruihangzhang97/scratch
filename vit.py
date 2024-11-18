@@ -82,4 +82,56 @@ class InputEmbedding(nn.Module):
         linear_projection += pos_embed
         
         return linear_projection
+    
+class EncoderBlock(nn.Module):
+    def __init__(self, latent_size=latent_size, num_heads=num_heads, device=device, dropout=dropout):
+        super(EncoderBlock, self).__init__()
+
+        self.latent_size = latent_size
+        self.num_heads = num_heads
+        self.device = device
+        self.dropout = dropout
+
+        # normalization layer
+        self.norm = nn.LayerNorm(self.latent_size)
+
+        # multihead 
+        self.multihead = nn.MultiheadAttention(
+            self.latent_size, self.num_heads, dropout=self.dropout
+        )
+
+        # mlp
+        self.enc_MLP = nn.Sequential(
+            nn.Linear(self.latent_size, self.latent_size * 4),
+            nn.GELU(),
+            nn.Dropout(self.dropout),
+            nn.Linear(self.latent_size * 4, self.latent_size),
+            nn.Dropout(self.dropout)
+        )
+    def forward(self, embeded_patches):
+
+        # first norm layer
+        firstnorm_out = self.norm(embeded_patches)
+
+        # q, k, v are all set to firstnorm_out
+        # only using first element of output
+        attention_out = self.multihead(firstnorm_out, firstnorm_out, firstnorm_out)[0]
+
+        # first residual connection
+        first_added = attention_out + embeded_patches
+
+        # second norm layer
+        secondnorm_out = self.norm(first_added)
+
+        # mlp layer
+        ff_out = self.enc_MLP(secondnorm_out)
+
+        output = ff_out + first_added 
+
+        # output shape same as embeded_patches shape
+        return output
+
+
+
+
 
