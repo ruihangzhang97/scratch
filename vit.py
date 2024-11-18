@@ -70,4 +70,16 @@ class InputEmbedding(nn.Module):
 
         linear_projection = self.linearProjection(patches).to(self.device)
 
+        b, n, _ = linear_projection.shape
+
+        # prepending class tokens
+        # [1, 196, 768] -> [1, 197, 768]
+        linear_projection = torch.cat((self.class_token, linear_projection), dim=1)
+
+        # [1, 197, 768] -> same as linear_projection
+        pos_embed = einops.repeat(self.pos_embedding, 'b 1 d -> b m d', m=n+1)
+
+        linear_projection += pos_embed
         
+        return linear_projection
+
